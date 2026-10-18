@@ -26,16 +26,23 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# --- Initialisation de la clé API en session ---
+if "api_key" not in st.session_state:
+    st.session_state.api_key = ""
+
 # --- 🧠 BARRE LATÉRALE : MÉMOIRE & CLÉ API ---
 with st.sidebar:
     st.header("⚙️ Paramètres")
-    api_key = st.text_input("Clé API Groq (gsk_...)", type="password")
+    
+    user_api_input = st.text_input("Clé API Groq (gsk_...)", type="password", value=st.session_state.api_key)
+    if user_api_input:
+        st.session_state.api_key = user_api_input
     
     st.divider()
     st.header("🧠 Mémoire Globale (Profil)")
     user_nom = st.text_input("Ton Prénom / Pseudo", value="Développeur")
     user_niveau = st.text_input("Niveau / Rôle", value="Étudiant / Autodidacte")
-    user_objectifs = st.text_area("Objectifs & Projets", value="Créer un chat multi-agents et des sites web en live.")
+    user_objectifs = st.text_area("Objectifs & Projets", value="Créer un chat multi-agents et des applications sur iPad.")
     
     st.divider()
     if st.button("🗑️ Effacer la discussion"):
@@ -61,22 +68,22 @@ def appeler_agent_groq(prompt, agent_role, profil_utilisateur, api_key):
     url = "https://api.groq.com/openai/v1/chat/completions"
     
     system_prompt = f"""
-    Tu es un assistant virtuel intelligent au sein d'une équipe multi-agents.
+    Tu es un assistant virtuel intelligent au sein d'une équipe multi-agents inspirée des meilleures IA du marché.
     Voici le profil de la personne à qui tu parles :
     - Nom : {profil_utilisateur['nom']}
     - Niveau : {profil_utilisateur['niveau']}
     - Objectifs : {profil_utilisateur['objectifs']}
     
     Ton rôle spécifique actuel : {agent_role}
-    Réponds toujours en tenant compte de ce profil, de manière claire et adaptée.
+    Réponds toujours en tenant compte de ce profil, de manière claire, structurée et adaptée.
     """
     
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
-    data = { "model": "
-       "model": "llama-3.1-8b-instant",
+    data = {
+        "model": "llama-3.1-8b-instant",
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt}
@@ -88,34 +95,36 @@ def appeler_agent_groq(prompt, agent_role, profil_utilisateur, api_key):
         if response.status_code == 200:
             return response.json()["choices"][0]["message"]["content"]
         else:
-            return f"❌ Erreur API : {response.text}"
+            return f"❌ Erreur API ({response.status_code}) : {response.text}"
     except Exception as e:
         return f"❌ Erreur de connexion : {e}"
 
-# --- Le Routeur Intelligent (Choisit l'agent selon la demande) ---
+# --- Le Routeur Intelligent (Spécialisé par IA de ta liste) ---
 def router_requete(prompt):
     p = prompt.lower()
-    if any(kw in p for kw in ["code", "html", "python", "site", "bug", "script", "développe"]):
-        return "💻 Agent Codeur (Expert Tech)", "Un expert en développement logiciel, HTML, Python et conception de code propre."
-    elif any(kw in p for kw in ["cherche", "actualité", "infos", "sur internet", "qui est"]):
-        return "🔍 Agent Recherche & Veille", "Un expert en recherche d'informations précises et actualisées."
-    elif any(kw in p for kw in ["traduis", "traduction", "anglais", "espagnol"]):
-        return "🌐 Agent Linguistique", "Un expert en traduction et en raffinement de textes."
+    if any(kw in p for kw in ["traduis", "traduction", "anglais", "espagnol", "deepl", "formule"]):
+        return "🌐 Agent DeepL (Traduction)", "Un expert incontesté de la traduction de documents et de la reformulation/amélioration de style."
+    elif any(kw in p for kw in ["code", "html", "python", "site", "bug", "script", "développe", "cursor"]):
+        return "💻 Agent Cursor (Code)", "Un assistant de programmation/codage pour écrire, corriger et compléter du code proprement."
+    elif any(kw in p for kw in ["cherche", "actualité", "infos", "sur internet", "qui est", "perplexity"]):
+        return "🔍 Agent Perplexity (Recherche)", "Le roi de la recherche sourcée, agissant comme un moteur de recherche intelligent."
+    elif any(kw in p for kw in ["rédige", "lettre", "texte", "article", "claude", "histoire", "analyse"]):
+        return "✍️ Agent Claude (Rédaction)", "Le meilleur pour la qualité de l'écriture, l'analyse de documents complexes et le raisonnement nuancé."
+    elif any(kw in p for kw in ["image", "dessine", "illustration", "leonardo"]):
+        return "🎨 Agent Leonardo.ai (Création visuelle)", "Un agent spécialisé pour décrire, concevoir et structurer des prompts pour la génération d'images artistiques."
     else:
-        return "🧠 Agent Généraliste (Polyvalent)", "Un assistant généraliste, brillant pour le brainstorming et la discussion du quotidien."
+        return "🧠 Agent ChatGPT (Polyvalent)", "Le plus polyvalent pour la conversation, la rédaction, le résumé et la recherche générale."
 
 # --- Zone de saisie du chat ---
 if prompt := st.chat_input("iMessage..."):
     st.session_state.messages.append({"role": "user", "content": prompt})
     
-    if not api_key:
+    if not st.session_state.api_key:
         nom_agent = "⚠️ Système"
         reponse = "Veuillez entrer votre clé API Groq dans la barre latérale !"
     else:
-        # 1. Le routeur choisit l'agent
         nom_agent, role_description = router_requete(prompt)
         
-        # 2. On prépare le profil mémoire
         profil = {
             "nom": user_nom,
             "niveau": user_niveau,
@@ -123,8 +132,7 @@ if prompt := st.chat_input("iMessage..."):
         }
         
         with st.spinner(f"{nom_agent} prend le relais..."):
-            # 3. L'agent sélectionné répond en connaissant ton profil
-            reponse = appeler_agent_groq(prompt, role_description, profil, api_key)
+            reponse = appeler_agent_groq(prompt, role_description, profil, st.session_state.api_key)
             
     st.session_state.messages.append({"role": "assistant", "agent": nom_agent, "content": reponse})
     st.rerun()
