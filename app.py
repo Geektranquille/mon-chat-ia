@@ -83,7 +83,7 @@ def appeler_agent_groq(prompt, agent_role, profil_utilisateur, api_key):
         "Content-Type": "application/json"
     }
     data = {
-        "model": "llama-3.1-8b-instant",
+        "model": "openai/gpt-oss-20b",
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt}
