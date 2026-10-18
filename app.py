@@ -75,8 +75,8 @@ def appeler_agent_groq(prompt, agent_role, profil_utilisateur, api_key):
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json"
     }
-    data = {
-        "model": "llama-3.3-70b-versatile",
+    data = { "model": "
+       "model": "llama-3.1-8b-instant",
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": prompt}
